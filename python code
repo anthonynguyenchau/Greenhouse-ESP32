@@ -1,0 +1,92 @@
+import os
+import re
+import json
+import pandas as pd
+from google import genai
+from flask import Flask, request, jsonify
+from dotenv import load_dotenv
+
+load_dotenv()
+app = Flask(__name__)
+
+
+DATA_FOLDER = r"E:\greenhous project\final simulation test"
+
+def get_path(filename):
+    return os.path.join(DATA_FOLDER, filename)
+
+
+api_key = os.getenv("GEMINI_API_KEY")
+client = genai.Client(api_key=api_key) if api_key else None
+MODEL_NAME = "models/gemini-2.5-flash"
+
+def clean_and_read_last_value(filename):
+    """Mở file thô, xóa sạch dấu ngoặc kép và lấy số cuối cùng"""
+    path = get_path(filename)
+    if not os.path.exists(path) or os.stat(path).st_size == 0:
+        return "No data"
+    
+    try:
+        with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+            lines = f.readlines()
+            if not lines: return "Empty"
+            
+            # Lấy dòng cuối cùng
+            last_line = lines[-1].strip()
+            
+            # Dùng Regex để tìm tất cả các số (bao gồm số thập phân) trong dòng đó
+            # Cách này bỏ qua sạch sẽ dấu ngoặc kép, dấu cách, hay ký tự lạ
+            numbers = re.findall(r"[-+]?\d*\.\d+|\d+", last_line)
+            
+            if numbers:
+                # Thông thường file có dạng: timestamp, giá trị
+                # Nên giá trị cảm biến thường là số cuối cùng trong dòng
+                return numbers[-1] 
+            return "Format error"
+    except Exception as e:
+        return f"Read error: {str(e)}"
+
+def load_all_sensors():
+    return {
+        'temperature': clean_and_read_last_value('temp.csv'),
+        'humidity': clean_and_read_last_value('hum.csv'),
+        'soil_humidity': clean_and_read_last_value('shum.csv'),
+        'light_intensity': clean_and_read_last_value('lum.csv')
+    }
+
+@app.route('/ask', methods=['POST'])
+def ask_question():
+    if not client: return jsonify({'error': 'Missing API Key'}), 500
+    
+    data = request.get_json(silent=True)
+    question = data.get('question', 'Status update?') if data else 'Status update?'
+    
+
+    sensor_data = load_all_sensors()
+    
+ 
+    try:
+        with open(get_path('plant.txt'), 'r') as f:
+            plant = f.readline().strip()
+    except:
+        plant = "Smart Plant"
+
+ 
+    prompt = f"""
+    You are a smart planter assistant for a {plant}.
+    Current cleaned sensor values: {json.dumps(sensor_data)}
+    
+    User question: {question}
+    
+    If the values are numbers, explain them. If they say "No data", tell the user to check the sensors. 
+    Speak English, be witty and funny.
+    """
+
+    try:
+        response = client.models.generate_content(model=MODEL_NAME, contents=prompt)
+        return jsonify({'response': response.text.strip()})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=5000)
