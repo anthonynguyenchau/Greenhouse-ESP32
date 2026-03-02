@@ -22,8 +22,8 @@ int ventState = LOW;
 
 int low_power_mode = 0;
 
-const char* ssid = "EIU STUDENT/GUEST 3";  
-const char* password = ""; 
+const char* ssid = ***;  
+const char* password = ***; 
 const char* mqtt_server = "test.mosquitto.org";
 WiFiClient espclient;
 
