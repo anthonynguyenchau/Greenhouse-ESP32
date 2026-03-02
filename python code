@@ -10,8 +10,7 @@ load_dotenv()
 app = Flask(__name__)
 
 
-DATA_FOLDER = r"E:\greenhous project\final simulation test"
-
+DATA_FOLDER = ***
 def get_path(filename):
     return os.path.join(DATA_FOLDER, filename)
 
@@ -21,7 +20,7 @@ client = genai.Client(api_key=api_key) if api_key else None
 MODEL_NAME = "models/gemini-2.5-flash"
 
 def clean_and_read_last_value(filename):
-    """Mở file thô, xóa sạch dấu ngoặc kép và lấy số cuối cùng"""
+   
     path = get_path(filename)
     if not os.path.exists(path) or os.stat(path).st_size == 0:
         return "No data"
@@ -39,8 +38,6 @@ def clean_and_read_last_value(filename):
             numbers = re.findall(r"[-+]?\d*\.\d+|\d+", last_line)
             
             if numbers:
-                # Thông thường file có dạng: timestamp, giá trị
-                # Nên giá trị cảm biến thường là số cuối cùng trong dòng
                 return numbers[-1] 
             return "Format error"
     except Exception as e:
